@@ -1,7 +1,10 @@
 package com.db.awmd.challenge.web;
 
 import com.db.awmd.challenge.domain.Account;
+import com.db.awmd.challenge.domain.Transfer;
 import com.db.awmd.challenge.exception.DuplicateAccountIdException;
+import com.db.awmd.challenge.exception.InsufficientFundsException;
+import com.db.awmd.challenge.exception.SameAccountIdException;
 import com.db.awmd.challenge.service.AccountsService;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +48,21 @@ public class AccountsController {
   public Account getAccount(@PathVariable String accountId) {
     log.info("Retrieving account for id {}", accountId);
     return this.accountsService.getAccount(accountId);
+  }
+  
+  @RequestMapping("/instantTransfer")
+  @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<Object> instantTransfer(@RequestBody @Valid Transfer transfer) {
+	log.info("Initiating transfer {}", transfer);
+    try {
+    	this.accountsService.instantTransfer(transfer);
+    } catch (SameAccountIdException sameaccounts) {
+      return new ResponseEntity<>(sameaccounts.getMessage(), HttpStatus.BAD_REQUEST);
+    }catch (InsufficientFundsException fundsException) {
+        return new ResponseEntity<>(fundsException.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    return new ResponseEntity<>(HttpStatus.CREATED);
   }
 
 }
