@@ -22,9 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/v1/accounts")
 @Slf4j
-public class AccountsController {
+public class AccountsController implements Runnable{
 
   private final AccountsService accountsService;
+  
+  private Transfer transfer;
 
   @Autowired
   public AccountsController(AccountsService accountsService) {
@@ -54,8 +56,18 @@ public class AccountsController {
   @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<Object> instantTransfer(@RequestBody @Valid Transfer transfer) {
 	log.info("Initiating transfer {}", transfer);
+	this.transfer = transfer;
     try {
+    	/*
+    	 * Creating a thread based implementation, to add dynamic threads 
+    	 * for processing multiple request in the existing application.
+    	 * */
+    	
+    	Thread t1 = new Thread(this);
+    	t1.start(); // would invoke run method on 'this' class via thread 't1' 
+    	
     	this.accountsService.instantTransfer(transfer);
+    	
     } catch (SameAccountIdException sameaccounts) {
       return new ResponseEntity<>(sameaccounts.getMessage(), HttpStatus.BAD_REQUEST);
     }catch (InsufficientFundsException fundsException) {
@@ -64,5 +76,11 @@ public class AccountsController {
 
     return new ResponseEntity<>(HttpStatus.CREATED);
   }
+
+@Override
+public void run() {
+	// calling instant transfer on thread 't1' to perform transfer operation.
+	this.accountsService.instantTransfer(transfer);
+}
 
 }

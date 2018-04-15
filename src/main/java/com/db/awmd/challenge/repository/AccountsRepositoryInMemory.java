@@ -21,6 +21,7 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
   public void createAccount(Account account) throws DuplicateAccountIdException {
     Account previousAccount = accounts.putIfAbsent(account.getAccountId(), account);
     if (previousAccount != null) {
+    	System.out.println("Account id " + account.getAccountId() + " already exists!");
       throw new DuplicateAccountIdException(
         "Account id " + account.getAccountId() + " already exists!");
     }
@@ -37,7 +38,7 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
   }
 
 @Override
-public void instantTransfer(Transfer transfer) throws SameAccountIdException, InsufficientFundsException {
+public synchronized void instantTransfer(Transfer transfer) throws SameAccountIdException, InsufficientFundsException {
 	// TODO Auto-generated method stub
 	
 	EmailNotificationService notify = new EmailNotificationService();
@@ -47,6 +48,7 @@ public void instantTransfer(Transfer transfer) throws SameAccountIdException, In
 	BigDecimal amount = transfer.getAmount();
 	
 	if(toAccount.equals(fromAccount)){
+		System.out.println("Provided 'To' and 'From' accounts are same");
 		throw new SameAccountIdException("Provided 'To' and 'From' accounts are same");
 	}
 	
@@ -54,21 +56,39 @@ public void instantTransfer(Transfer transfer) throws SameAccountIdException, In
 	Account fromAccountDetails = accounts.get(fromAccount);
 	
 	if(amount.compareTo(fromAccountDetails.getBalance()) > 0){
+		System.out.println("This account does not have sufficient fund to transfer");
 		throw new InsufficientFundsException("This account does not have sufficient fund to transfer");
 	}
 	
-	System.out.println("Updated toAccount detaiils "+(toAccountDetails.getBalance()).subtract(amount));
-	toAccountDetails.setBalance((toAccountDetails.getBalance()).add(amount));
-	String messageto = "Updated balance is: "+toAccountDetails.getBalance();
+		// Would be simulating DB Access here
+		
+		/*
+		 * Accquiring lock on 'fromAccountDetails' till the update operation is completed and commited in DB. 
+		 * */
+		
+		synchronized (fromAccountDetails) {
+			System.out.println("Updated fromAccount detaiils: "+(fromAccountDetails.getBalance()).subtract(amount));
+			fromAccountDetails.setBalance((fromAccountDetails.getBalance()).subtract(amount));
+			String messagefrom = "Updated balance is: "+fromAccountDetails.getBalance();
 
-	notify.notifyAboutTransfer(toAccountDetails, messageto);
+			// Notifying user about transfer status.			
+			notify.notifyAboutTransfer(fromAccountDetails, messagefrom);
+			
+			/*
+			 * Accquiring lock on 'toAccountDetails' till the update operation is completed and commited in DB.
+			 * */
+			
+			synchronized (toAccountDetails) {
+				System.out.println("Updated toAccount detaiils "+(toAccountDetails.getBalance()).add(amount));
+				toAccountDetails.setBalance((toAccountDetails.getBalance()).add(amount));
+				String messageto = "Updated balance is: "+toAccountDetails.getBalance();
 
-	System.out.println("Updated fromAccount detaiils: "+(fromAccountDetails.getBalance()).add(amount));
-	fromAccountDetails.setBalance((fromAccountDetails.getBalance()).subtract(amount));
-	String messagefrom = "Updated balance is: "+fromAccountDetails.getBalance();
-	
-	notify.notifyAboutTransfer(fromAccountDetails, messagefrom);
-
+				// Notifying user about transfer status.
+				notify.notifyAboutTransfer(toAccountDetails, messageto);
+			}
+			
+		}
+		
 }
 
 }
