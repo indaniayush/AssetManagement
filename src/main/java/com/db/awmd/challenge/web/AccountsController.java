@@ -64,9 +64,7 @@ public class AccountsController implements Runnable{
     	 * */
     	
     	Thread t1 = new Thread(this);
-    	t1.start(); // would invoke run method on 'this' class via thread 't1' 
-    	
-    	this.accountsService.instantTransfer(transfer);
+    	t1.start(); // would invoke run method on 'this' class via thread 't1'
     	
     } catch (SameAccountIdException sameaccounts) {
       return new ResponseEntity<>(sameaccounts.getMessage(), HttpStatus.BAD_REQUEST);
